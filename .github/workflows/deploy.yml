@@ -16,26 +16,24 @@ jobs:
       - name: Pull latest code
         run: git -C ${{ env.APP_PATH }} pull origin main
 
-      - name: Install PHP dependencies
+      - name: Build & start containers
         working-directory: ${{ env.APP_PATH }}
-        run: composer install --no-dev --optimize-autoloader
-
-      - name: Install & build JS assets
-        working-directory: ${{ env.APP_PATH }}
-        run: npm ci && npm run build
+        run: docker compose up -d --build
 
       - name: Run database migrations
         working-directory: ${{ env.APP_PATH }}
-        run: php artisan migrate --force
+        run: docker compose exec -T app php artisan migrate --force
 
       - name: Cache config, routes & views
         working-directory: ${{ env.APP_PATH }}
         run: |
-          php artisan config:cache
-          php artisan route:cache
-          php artisan view:cache
+          docker compose exec -T app php artisan config:cache
+          docker compose exec -T app php artisan route:cache
+          docker compose exec -T app php artisan view:cache
 
       - name: Restart queue worker
         working-directory: ${{ env.APP_PATH }}
-        run: php artisan queue:restart
+        run: docker compose exec -T app php artisan queue:restart
+        continue-on-error: true
+
         continue-on-error: true
