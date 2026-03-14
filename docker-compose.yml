@@ -6,13 +6,32 @@ services:
     container_name: rstack
     restart: unless-stopped
     env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
       - rstack-storage:/var/www/rstack/storage
-      - rstack-db:/var/www/rstack/database
-      - /home/nucadmin/.ssh:/home/rstack/.ssh:ro # SSH-sleutels voor deployments
+      - /home/nucadmin/.ssh:/home/rstack/.ssh:ro
     ports:
       - "8080:80"
 
+  db:
+    image: mysql:8.4
+    container_name: rstack-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-rstack}
+      MYSQL_USER: ${DB_USERNAME:-rstack}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+    volumes:
+      - rstack-mysql:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   rstack-storage:
-  rstack-db:
+  rstack-mysql:

@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y \
     unzip \
     git \
     openssh-client \
-    && docker-php-ext-install pdo pdo_sqlite zip gd opcache mbstring \
+    && docker-php-ext-install pdo pdo_sqlite pdo_mysql zip gd opcache mbstring \
     && rm -rf /var/lib/apt/lists/*
 
 # Composer
