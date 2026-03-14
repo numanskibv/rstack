@@ -9,7 +9,7 @@ services:
     volumes:
       - rstack-storage:/var/www/rstack/storage
       - rstack-db:/var/www/rstack/database
-      - /home/nucadmin/.ssh:/home/rstack/.ssh:ro   # SSH-sleutels voor deployments
+      - /home/nucadmin/.ssh:/home/rstack/.ssh:ro # SSH-sleutels voor deployments
     ports:
       - "8080:80"
 

@@ -35,5 +35,5 @@ jobs:
         working-directory: ${{ env.APP_PATH }}
         run: docker compose exec -T app php artisan queue:restart
         continue-on-error: true
+        
 
-        continue-on-error: true

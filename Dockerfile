@@ -26,8 +26,8 @@ RUN apk add --no-cache \
     unzip \
     git \
     openssh-client \
- && docker-php-ext-install pdo pdo_sqlite zip gd opcache \
- && rm -rf /var/cache/apk/*
+    && docker-php-ext-install pdo pdo_sqlite zip gd opcache \
+    && rm -rf /var/cache/apk/*
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -46,8 +46,8 @@ COPY --from=node-builder /app/public/build ./public/build
 
 # Permissies
 RUN chown -R www-data:www-data /var/www/rstack \
- && chmod -R 755 /var/www/rstack/storage \
- && chmod -R 755 /var/www/rstack/bootstrap/cache
+    && chmod -R 755 /var/www/rstack/storage \
+    && chmod -R 755 /var/www/rstack/bootstrap/cache
 
 # Configuratiebestanden
 COPY docker/nginx.conf /etc/nginx/http.d/default.conf
