@@ -1,14 +1,20 @@
 # ---- Stage 1: Build JS assets ----
-FROM node:20-alpine AS node-builder
+FROM node:20 AS node-builder
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci
+RUN npm install
 
 COPY vite.config.js ./
 COPY resources/ ./resources/
 COPY public/ ./public/
+# laravel-vite-plugin heeft deze bestanden nodig tijdens build
+COPY artisan ./
+COPY app/ ./app/
+COPY bootstrap/ ./bootstrap/
+COPY config/ ./config/
+COPY routes/ ./routes/
 
 RUN npm run build
 
