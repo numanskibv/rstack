@@ -1,0 +1,18 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rstack
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - rstack-storage:/var/www/rstack/storage
+      - rstack-db:/var/www/rstack/database
+      - /home/nucadmin/.ssh:/home/rstack/.ssh:ro   # SSH-sleutels voor deployments
+    ports:
+      - "8080:80"
+
+volumes:
+  rstack-storage:
+  rstack-db:

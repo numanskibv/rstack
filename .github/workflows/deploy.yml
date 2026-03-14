@@ -1,0 +1,41 @@
+name: Deploy to NUC
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    name: Deploy to NUC (self-hosted)
+    runs-on: self-hosted
+
+    env:
+      APP_PATH: /var/www/rstack
+
+    steps:
+      - name: Pull latest code
+        run: git -C ${{ env.APP_PATH }} pull origin main
+
+      - name: Install PHP dependencies
+        working-directory: ${{ env.APP_PATH }}
+        run: composer install --no-dev --optimize-autoloader
+
+      - name: Install & build JS assets
+        working-directory: ${{ env.APP_PATH }}
+        run: npm ci && npm run build
+
+      - name: Run database migrations
+        working-directory: ${{ env.APP_PATH }}
+        run: php artisan migrate --force
+
+      - name: Cache config, routes & views
+        working-directory: ${{ env.APP_PATH }}
+        run: |
+          php artisan config:cache
+          php artisan route:cache
+          php artisan view:cache
+
+      - name: Restart queue worker
+        working-directory: ${{ env.APP_PATH }}
+        run: php artisan queue:restart
+        continue-on-error: true
