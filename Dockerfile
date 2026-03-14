@@ -1,22 +1,26 @@
 # ---- Stage 1: Build JS assets ----
 FROM node:20 AS node-builder
 
+# Composer nodig voor vendor/livewire/flux (geïmporteerd in app.css)
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+RUN apt-get update && apt-get install -y php-cli php-mbstring php-xml unzip && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
 COPY package*.json ./
 RUN npm install
 
+COPY composer.json composer.lock ./
+RUN composer install --no-dev --no-scripts --no-interaction --ignore-platform-reqs
+
 COPY vite.config.js ./
 COPY resources/ ./resources/
 COPY public/ ./public/
-# laravel-vite-plugin heeft deze bestanden nodig tijdens build
 COPY artisan ./
 COPY app/ ./app/
 COPY bootstrap/ ./bootstrap/
 COPY config/ ./config/
 COPY routes/ ./routes/
-# flux.css wordt geïmporteerd vanuit resources/css/app.css
-COPY vendor/livewire/flux/dist/ ./vendor/livewire/flux/dist/
 
 RUN npm run build
 
