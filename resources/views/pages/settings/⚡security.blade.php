@@ -88,34 +88,25 @@ new #[Title('Security settings')] class extends Component {
 <section class="w-full">
     @include('partials.settings-heading')
 
+    @if (session('status') === '2fa-required')
+        <flux:callout variant="warning" icon="shield-exclamation" class="mb-6">
+            <flux:callout.heading>Two-factor authenticatie vereist</flux:callout.heading>
+            <flux:callout.text>
+                Om servers en projecten toe te voegen moet je eerst two-factor authenticatie (2FA) inschakelen.
+            </flux:callout.text>
+        </flux:callout>
+    @endif
+
     <flux:heading class="sr-only">{{ __('Security settings') }}</flux:heading>
 
     <x-pages::settings.layout :heading="__('Update password')" :subheading="__('Ensure your account is using a long, random password to stay secure')">
         <form method="POST" wire:submit="updatePassword" class="mt-6 space-y-6">
-            <flux:input
-                wire:model="current_password"
-                :label="__('Current password')"
-                type="password"
-                required
-                autocomplete="current-password"
-                viewable
-            />
-            <flux:input
-                wire:model="password"
-                :label="__('New password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                viewable
-            />
-            <flux:input
-                wire:model="password_confirmation"
-                :label="__('Confirm password')"
-                type="password"
-                required
-                autocomplete="new-password"
-                viewable
-            />
+            <flux:input wire:model="current_password" :label="__('Current password')" type="password" required
+                autocomplete="current-password" viewable />
+            <flux:input wire:model="password" :label="__('New password')" type="password" required
+                autocomplete="new-password" viewable />
+            <flux:input wire:model="password_confirmation" :label="__('Confirm password')" type="password" required
+                autocomplete="new-password" viewable />
 
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-end">
@@ -143,10 +134,7 @@ new #[Title('Security settings')] class extends Component {
                             </flux:text>
 
                             <div class="flex justify-start">
-                                <flux:button
-                                    variant="danger"
-                                    wire:click="disable"
-                                >
+                                <flux:button variant="danger" wire:click="disable">
                                     {{ __('Disable 2FA') }}
                                 </flux:button>
                             </div>
@@ -160,10 +148,7 @@ new #[Title('Security settings')] class extends Component {
                             </flux:text>
 
                             <flux:modal.trigger name="two-factor-setup-modal">
-                                <flux:button
-                                    variant="primary"
-                                    wire:click="$dispatch('start-two-factor-setup')"
-                                >
+                                <flux:button variant="primary" wire:click="$dispatch('start-two-factor-setup')">
                                     {{ __('Enable 2FA') }}
                                 </flux:button>
                             </flux:modal.trigger>

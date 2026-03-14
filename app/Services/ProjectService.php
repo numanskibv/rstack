@@ -1,0 +1,92 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Project;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Throwable;
+
+class ProjectService
+{
+    public function __construct(
+        protected PortService $portService,
+        protected ProjectProvisioner $provisioner,
+    ) {}
+
+    public function all(): Collection
+    {
+        return Project::with(['server', 'stack'])->latest()->get();
+    }
+
+    /**
+     * Paginated project list for use in the UI at scale.
+     */
+    public function paginate(int $perPage = 20): LengthAwarePaginator
+    {
+        return Project::with(['server', 'stack'])->latest()->paginate($perPage);
+    }
+
+    /**
+     * Create a project record atomically, then provision its filesystem.
+     *
+     * The DB write (slug + port + insert) is wrapped in a transaction so that
+     * concurrent creates cannot produce duplicate slugs or ports silently.
+     * Provisioning runs outside the transaction to avoid holding a lock
+     * during slow filesystem I/O.
+     */
+    public function create(array $data): Project
+    {
+        $project = DB::transaction(function () use ($data) {
+            $data['slug']    = $this->uniqueSlug($data['name']);
+            $data['port']    = $this->portService->allocateNext();
+            $data['status']  = 'pending';
+            $data['user_id'] = Auth::id();
+
+            return Project::create($data);
+        });
+
+        try {
+            $this->provisioner->provision($project);
+            $project->update(['status' => 'ready']);
+        } catch (Throwable $e) {
+            $project->update(['status' => 'failed']);
+            throw $e;
+        }
+
+        return $project;
+    }
+
+    public function update(Project $project, array $data): Project
+    {
+        $project->update($data);
+
+        return $project;
+    }
+
+    /**
+     * Delete a project and remove its provisioned directory from disk.
+     */
+    public function delete(int $id): void
+    {
+        $project = Project::findOrFail($id);
+        $this->provisioner->deprovision($project);
+        $project->delete();
+    }
+
+    protected function uniqueSlug(string $name): string
+    {
+        $base = Str::slug($name);
+        $slug = $base;
+        $i    = 2;
+
+        while (Project::where('slug', $slug)->exists()) {
+            $slug = $base . '-' . $i++;
+        }
+
+        return $slug;
+    }
+}

@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AllowedDomain;
 use Laravel\Fortify\Features;
 
 beforeEach(function () {
@@ -13,10 +14,12 @@ test('registration screen can be rendered', function () {
 });
 
 test('new users can register', function () {
+    AllowedDomain::create(['domain' => 'example.com']);
+
     $response = $this->post(route('register.store'), [
-        'name' => 'John Doe',
-        'email' => 'test@example.com',
-        'password' => 'password',
+        'name'                  => 'John Doe',
+        'email'                 => 'test@example.com',
+        'password'              => 'password',
         'password_confirmation' => 'password',
     ]);
 
@@ -24,4 +27,16 @@ test('new users can register', function () {
         ->assertRedirect(route('dashboard', absolute: false));
 
     $this->assertAuthenticated();
+});
+
+test('users from disallowed domains cannot register', function () {
+    $response = $this->post(route('register.store'), [
+        'name'                  => 'Hacker',
+        'email'                 => 'hacker@evil.com',
+        'password'              => 'password',
+        'password_confirmation' => 'password',
+    ]);
+
+    $response->assertSessionHasErrors('email');
+    $this->assertGuest();
 });
