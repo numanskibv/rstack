@@ -15,6 +15,8 @@ COPY app/ ./app/
 COPY bootstrap/ ./bootstrap/
 COPY config/ ./config/
 COPY routes/ ./routes/
+# flux.css wordt geïmporteerd vanuit resources/css/app.css
+COPY vendor/livewire/flux/dist/ ./vendor/livewire/flux/dist/
 
 RUN npm run build
 
