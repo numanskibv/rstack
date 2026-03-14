@@ -11,6 +11,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->trustProxies(at: '*');
         $middleware->alias([
             'require.2fa' => \App\Http\Middleware\Require2FA::class,
             'admin'       => \App\Http\Middleware\IsAdmin::class,
