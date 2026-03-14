@@ -25,21 +25,22 @@ COPY routes/ ./routes/
 RUN npm run build
 
 # ---- Stage 2: PHP runtime ----
-FROM php:8.3-fpm-alpine AS app
+FROM php:8.3-fpm AS app
 
 # Systeem-afhankelijkheden
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y \
     nginx \
     supervisor \
-    sqlite \
+    libsqlite3-dev \
     libpng-dev \
     libzip-dev \
+    libonig-dev \
     curl \
     unzip \
     git \
     openssh-client \
-    && docker-php-ext-install pdo pdo_sqlite zip gd opcache \
-    && rm -rf /var/cache/apk/*
+    && docker-php-ext-install pdo pdo_sqlite zip gd opcache mbstring \
+    && rm -rf /var/lib/apt/lists/*
 
 # Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -62,7 +63,7 @@ RUN chown -R www-data:www-data /var/www/rstack \
     && chmod -R 755 /var/www/rstack/bootstrap/cache
 
 # Configuratiebestanden
-COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/nginx.conf /etc/nginx/sites-enabled/default
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/php.ini /usr/local/etc/php/conf.d/rstack.ini
 
