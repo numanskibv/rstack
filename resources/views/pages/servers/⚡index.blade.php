@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\ServerService;
+use Illuminate\Support\Facades\Auth;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
@@ -14,6 +15,7 @@ new #[Title('Servers')] class extends Component {
 
     public function delete(int $id): void
     {
+        abort_unless(Auth::user()->is_admin, 403);
         app(ServerService::class)->delete($id);
         unset($this->servers);
     }
@@ -26,9 +28,11 @@ new #[Title('Servers')] class extends Component {
             <flux:heading size="xl">{{ __('Servers') }}</flux:heading>
             <flux:subheading>{{ __('Docker hosts registered in RStack') }}</flux:subheading>
         </div>
-        <flux:button icon="plus" href="{{ route('servers.create') }}" wire:navigate variant="primary">
-            {{ __('Add Server') }}
-        </flux:button>
+        @if (Auth::user()->is_admin)
+            <flux:button icon="plus" href="{{ route('servers.create') }}" wire:navigate variant="primary">
+                {{ __('Add Server') }}
+            </flux:button>
+        @endif
     </div>
 
     <flux:separator />
@@ -41,9 +45,11 @@ new #[Title('Servers')] class extends Component {
                 <flux:heading>{{ __('No servers yet') }}</flux:heading>
                 <flux:subheading>{{ __('Add your first Docker host to get started.') }}</flux:subheading>
             </div>
-            <flux:button href="{{ route('servers.create') }}" wire:navigate>
-                {{ __('Add Server') }}
-            </flux:button>
+            @if (Auth::user()->is_admin)
+                <flux:button href="{{ route('servers.create') }}" wire:navigate>
+                    {{ __('Add Server') }}
+                </flux:button>
+            @endif
         </div>
     @else
         <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -78,10 +84,12 @@ new #[Title('Servers')] class extends Component {
                                 </flux:badge>
                             </td>
                             <td class="px-4 py-3 text-end">
-                                <flux:button wire:click="delete({{ $server->id }})"
-                                    wire:confirm="Remove this server?" size="sm" variant="danger">
-                                    {{ __('Remove') }}
-                                </flux:button>
+                                @if (Auth::user()->is_admin)
+                                    <flux:button wire:click="delete({{ $server->id }})"
+                                        wire:confirm="Remove this server?" size="sm" variant="danger">
+                                        {{ __('Remove') }}
+                                    </flux:button>
+                                @endif
                             </td>
                         </tr>
                     @endforeach

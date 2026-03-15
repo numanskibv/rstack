@@ -9,7 +9,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Servers
     Route::livewire('servers', 'pages::servers.index')->name('servers.index');
-    Route::livewire('servers/create', 'pages::servers.create')->name('servers.create')->middleware('require.2fa');
+    Route::livewire('servers/create', 'pages::servers.create')->name('servers.create')->middleware(['admin', 'require.2fa']);
 
     // Projects
     Route::livewire('projects', 'pages::projects.index')->name('projects.index');

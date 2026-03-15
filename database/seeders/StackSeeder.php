@@ -31,6 +31,13 @@ class StackSeeder extends Seeder
                 'description'   => 'Static HTML/CSS/JS site served by Nginx.',
                 'template_path' => 'storage/stacks/static',
             ],
+            [
+                'name'          => 'PHP',
+                'slug'          => 'php',
+                'runtime'       => 'PHP 8.3',
+                'description'   => 'Pure PHP application with PHP-FPM and Nginx. No framework required.',
+                'template_path' => 'storage/stacks/php',
+            ],
         ];
 
         foreach ($stacks as $stack) {
