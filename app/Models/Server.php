@@ -15,6 +15,7 @@ class Server extends Model
         'ssh_user',
         'ssh_port',
         'status',
+        'max_projects',
     ];
 
     protected $attributes = [
@@ -22,6 +23,22 @@ class Server extends Model
         'ssh_port' => 22,
         'status'   => 'active',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'max_projects' => 'integer',
+        ];
+    }
+
+    public function hasCapacity(): bool
+    {
+        if ($this->max_projects === null) {
+            return true;
+        }
+
+        return $this->projects()->count() < $this->max_projects;
+    }
 
     public function user(): BelongsTo
     {

@@ -41,6 +41,15 @@ class ProjectService
     public function create(array $data): Project
     {
         $project = DB::transaction(function () use ($data) {
+            // Re-check capacity inside the transaction to prevent race conditions
+            $server = \App\Models\Server::lockForUpdate()->findOrFail($data['server_id']);
+            if (! $server->hasCapacity()) {
+                throw new \Illuminate\Validation\ValidationException(
+                    validator([], []),
+                    response()->json(['message' => 'Server has reached its maximum project limit.'], 422)
+                );
+            }
+
             $data['slug']    = $this->uniqueSlug($data['name']);
             $data['port']    = $this->portService->allocateNext();
             $data['status']  = 'pending';

@@ -18,15 +18,19 @@ new #[Title('Add Server')] class extends Component {
     #[Validate('required|integer|min:1|max:65535')]
     public int $ssh_port = 22;
 
+    #[Validate('nullable|integer|min:1|max:255')]
+    public ?int $max_projects = null;
+
     public function save(): void
     {
         $this->validate();
 
         app(ServerService::class)->create([
-            'name' => $this->name,
-            'ip_address' => $this->ip_address,
-            'ssh_user' => $this->ssh_user,
-            'ssh_port' => $this->ssh_port,
+            'name'         => $this->name,
+            'ip_address'   => $this->ip_address,
+            'ssh_user'     => $this->ssh_user,
+            'ssh_port'     => $this->ssh_port,
+            'max_projects' => $this->max_projects,
         ]);
 
         $this->redirect(route('servers.index'), navigate: true);
@@ -68,6 +72,13 @@ new #[Title('Add Server')] class extends Component {
                 <flux:error name="ssh_port" />
             </flux:field>
         </div>
+
+        <flux:field>
+            <flux:label>{{ __('Max Projects') }} <flux:badge size="sm" variant="ghost">{{ __('optional') }}</flux:badge></flux:label>
+            <flux:input wire:model="max_projects" type="number" min="1" max="255" placeholder="{{ __('Unlimited') }}" />
+            <flux:description>{{ __('Leave empty for no limit. Prevents new projects from being added when the server is full.') }}</flux:description>
+            <flux:error name="max_projects" />
+        </flux:field>
 
         <div class="flex items-center gap-4">
             <flux:button type="submit" variant="primary">

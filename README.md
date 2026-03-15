@@ -264,17 +264,41 @@ Templates staan in `storage/stacks/{naam}/`. Elke template bevat:
 ```
 Dockerfile
 docker-compose.yml
-nginx.conf            (optioneel)
+nginx.conf            (aanwezig bij laravel en static)
+supervisord.conf      (aanwezig bij laravel)
 .env.template         (variabelen die automatisch worden ingevuld)
 ```
 
 ### Meegeleverde templates
 
-| Stack | Runtime | Omschrijving |
-|-------|---------|--------------|
-| `laravel` | PHP 8.3-fpm + Nginx + MySQL | Laravel applicatie |
-| `node` | Node 20 | Node.js applicatie |
-| `static` | Nginx Alpine | Statische website |
+| Stack | Runtime | Database | Omschrijving |
+|-------|---------|----------|--------------|
+| `laravel` | PHP 8.3-fpm-alpine + Nginx (multi-stage) | MySQL 8.4 | Laravel applicatie met Vite asset build |
+| `node` | Node 20 Alpine | — | Node.js applicatie, draait als niet-root gebruiker |
+| `static` | Nginx Alpine | — | Statische website / SPA met client-side routing |
+
+### Template details per stack
+
+#### laravel
+
+- **Multi-stage build** — `node:20-alpine` bouwt JS assets, `php:8.3-fpm-alpine` is de runtime
+- **Supervisor** beheert nginx + php-fpm
+- **MySQL 8.4** met healthcheck; app wacht op `condition: service_healthy`
+- **Storage volume** voor logs, sessies en uploads (overleeft container restarts)
+- **`HEALTHCHECK`** op `/up` (Laravel health endpoint)
+- **Nginx security headers** — `X-Frame-Options`, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy`, `server_tokens off`, `fastcgi_hide_header X-Powered-By`
+- **`APP_DEBUG=false`** standaard; `LOG_CHANNEL=stderr`
+
+#### node
+
+- **`USER node`** — container draait nooit als root
+- **`npm ci --omit=dev`** — geen dev dependencies in productie
+- **`HEALTHCHECK`** op `/health`
+
+#### static
+
+- Eigen **nginx.conf** met security headers + lange-termijn asset caching
+- Verwijdert `Dockerfile`, `.env` en `nginx.conf` automatisch uit de HTML root tijdens build
 
 ### Eigen template toevoegen
 
@@ -507,103 +531,3 @@ De bijbehorende **publieke sleutel** moet aanwezig zijn in `~/.ssh/authorized_ke
 2. Ga naar **Servers → Server toevoegen**
 3. Vul naam, IP-adres, SSH-gebruiker en poort in
 4. Zorg dat de SSH-sleutel van RStack toegang heeft tot de server
-
----
-
-## Stack-templates
-
-Templates staan in `storage/stacks/{naam}/`. Elke template kan de volgende bestanden bevatten:
-
-```
-Dockerfile
-docker-compose.yml
-nginx.conf          (optioneel)
-.env.template       (variabelen die automatisch worden ingevuld)
-```
-
-### Meegeleverde templates
-
-| Stack     | Runtime                      | Omschrijving       |
-|-----------|------------------------------|--------------------|
-| `laravel` | PHP 8.3-fpm + Nginx + MySQL  | Laravel applicatie |
-| `node`    | Node 20                      | Node.js applicatie |
-| `static`  | Nginx Alpine                 | Statische website  |
-
-### Eigen template toevoegen
-
-1. Maak een map `storage/stacks/{naam}/`
-2. Voeg `Dockerfile`, `docker-compose.yml` en `.env.template` toe
-3. Voeg de stack toe via de database of seeder
-4. De template is direct beschikbaar bij het aanmaken van een project
-
----
-
-## Projecten aanmaken
-
-1. Activeer 2FA (vereist)
-2. Ga naar **Projects → Project toevoegen**
-3. Kies een server en een stack
-4. Vul naam, domein en omgevingsvariabelen in
-5. RStack maakt automatisch:
-   - Een unieke slug en poortnummer (startend bij 8001)
-   - Een projectmap lokaal (`storage/app/projects/{slug}/`)
-   - Een kopie van de stack-template
-   - Een `.env` bestand met platform- en gebruikersvariabelen
-
----
-
-## Deployment
-
-Een deployment wordt uitgevoerd via `DeploymentService::deploy()`:
-
-1. Project moet status `ready` hebben
-2. Er wordt een deployment-record aangemaakt met status `running`
-3. RStack verbindt via SSH met de server
-4. In de projectmap (`/srv/rstack/projects/{slug}`) wordt `docker compose up -d` uitgevoerd
-5. De output wordt opgeslagen als deployment-log
-6. Bij succes: status `deployed` + timestamp, project wordt `running`
-7. Bij fout: status `failed` + foutmelding in log, project wordt `failed`
-
----
-
-## Architectuur
-
-```
-Gebruiker → RStack Panel (Livewire Volt)
-               |
-           Services
-               |
-        +------+------+
-        |             |
-   Eloquent       ProjectProvisioner
-   Models             |
-     |            Lokaal bestandssysteem
-   Database
-               |
-           DeploymentService
-               |
-           SSH → Docker-server → Containers
-```
-
-### Services
-
-| Service | Verantwoordelijkheid |
-|---------|---------------------|
-| `ProjectService` | Project CRUD, atomische slug + poorttoewijzing |
-| `ServerService` | Server CRUD |
-| `StackService` | Stack CRUD + template-validatie |
-| `PortService` | Automatische poorttoewijzing (start bij 8001) |
-| `ProjectProvisioner` | Lokale bestandssysteem-provisioning |
-| `DeploymentService` | SSH-verbinding, Docker-uitvoering, deployment-lifecycle |
-| `AllowedDomainService` | Beheer van toegestane registratiedomeinen |
-
-### Database-tabellen
-
-| Tabel | Inhoud |
-|-------|--------|
-| `users` | Gebruikers, `is_admin` vlag, 2FA-velden |
-| `servers` | Docker-hosts, gekoppeld aan `user_id` |
-| `stacks` | Deployment-templates |
-| `projects` | Gedeployde applicaties, gekoppeld aan `user_id`, server en stack |
-| `deployments` | Deployment-runs met log en status |
-| `allowed_domains` | Toegestane e-maildomeinen voor registratie |

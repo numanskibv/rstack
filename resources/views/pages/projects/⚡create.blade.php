@@ -30,7 +30,7 @@ new #[Title('New Project')] class extends Component {
     #[Computed]
     public function servers()
     {
-        return app(ServerService::class)->active();
+        return app(ServerService::class)->active()->loadCount('projects');
     }
 
     #[Computed]
@@ -101,7 +101,14 @@ new #[Title('New Project')] class extends Component {
             <flux:label>{{ __('Server') }}</flux:label>
             <flux:select wire:model="server_id" placeholder="{{ __('Select a server…') }}">
                 @foreach ($this->servers as $server)
-                    <flux:select.option value="{{ $server->id }}">{{ $server->name }} ({{ $server->ip_address }})
+                    @php
+                        $isFull = $server->max_projects !== null && $server->projects_count >= $server->max_projects;
+                        $capacity = $server->max_projects !== null
+                            ? $server->projects_count . '/' . $server->max_projects
+                            : $server->projects_count;
+                    @endphp
+                    <flux:select.option value="{{ $server->id }}" @disabled($isFull)>
+                        {{ $server->name }} ({{ $server->ip_address }}) — {{ $capacity }}{{ $isFull ? ' · vol' : '' }}
                     </flux:select.option>
                 @endforeach
             </flux:select>
@@ -111,6 +118,10 @@ new #[Title('New Project')] class extends Component {
                     {{ __('No active servers found.') }}
                     <a href="{{ route('servers.create') }}" wire:navigate
                         class="underline">{{ __('Add a server first.') }}</a>
+                </flux:description>
+            @elseif ($server_id && ($selected = $this->servers->firstWhere('id', $server_id)) && $selected->max_projects !== null && $selected->projects_count >= $selected->max_projects)
+                <flux:description class="text-red-500">
+                    {{ __('This server has reached its maximum number of projects (:max).', ['max' => $selected->max_projects]) }}
                 </flux:description>
             @endif
         </flux:field>
