@@ -15,6 +15,12 @@ new #[Title('New Project')] class extends Component {
     #[Validate('nullable|string|max:255')]
     public string $domain = '';
 
+    #[Validate('nullable|url|max:500')]
+    public string $repository = '';
+
+    #[Validate('nullable|string|max:100')]
+    public string $branch = 'main';
+
     #[Validate('required|exists:servers,id')]
     public string $server_id = '';
 
@@ -40,6 +46,8 @@ new #[Title('New Project')] class extends Component {
         app(ProjectService::class)->create([
             'name' => $this->name,
             'domain' => $this->domain ?: null,
+            'repository' => $this->repository ?: null,
+            'branch' => $this->branch ?: 'main',
             'server_id' => $this->server_id,
             'stack_id' => $this->stack_id,
         ]);
@@ -70,6 +78,23 @@ new #[Title('New Project')] class extends Component {
             </flux:label>
             <flux:input wire:model="domain" placeholder="e.g. myapp.example.com" />
             <flux:error name="domain" />
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Git Repository') }} <flux:badge size="sm" variant="ghost">{{ __('optional') }}
+                </flux:badge>
+            </flux:label>
+            <flux:input wire:model="repository" placeholder="git@github.com:gebruiker/project.git" />
+            <flux:description>
+                {{ __('SSH clone URL van je GitHub/GitLab repo. Wordt automatisch gekloond bij eerste deploy.') }}
+            </flux:description>
+            <flux:error name="repository" />
+        </flux:field>
+
+        <flux:field>
+            <flux:label>{{ __('Branch') }}</flux:label>
+            <flux:input wire:model="branch" placeholder="main" />
+            <flux:error name="branch" />
         </flux:field>
 
         <flux:field>

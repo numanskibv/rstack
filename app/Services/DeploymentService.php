@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Deployment;
 use App\Models\Project;
+use App\Services\SshKeyService;
 use Illuminate\Database\Eloquent\Collection;
 use RuntimeException;
 use Spatie\Ssh\Ssh;
@@ -62,6 +63,39 @@ class DeploymentService
         try {
             $remoteDir = rtrim(config('rstack.remote_project_root', '/srv/rstack/projects'), '/') . '/' . $project->slug;
 
+            $commands = [];
+
+            // Clone or pull the git repository if configured
+            if ($project->repository) {
+                $branch = $project->branch ?: 'main';
+
+                // If the project owner has a per-user SSH key, upload and use it for git
+                $project->loadMissing('user');
+                $gitSshPrefix = '';
+                if ($project->user && $project->user->ssh_public_key) {
+                    $sshKeyService = app(SshKeyService::class);
+                    $privateKeyPath = $sshKeyService->privateKeyPath($project->user);
+                    if (file_exists($privateKeyPath)) {
+                        $remoteKeyPath = '~/.ssh/rstack-user-' . $project->user->id;
+                        $encodedKey = base64_encode(file_get_contents($privateKeyPath));
+                        // Upload private key to the NUC (output suppressed — not logged)
+                        $commands[] = 'echo ' . escapeshellarg($encodedKey) . ' | base64 -d > ' . $remoteKeyPath . ' && chmod 600 ' . $remoteKeyPath . ' 2>/dev/null';
+                        $gitSshPrefix = 'GIT_SSH_COMMAND=' . escapeshellarg('ssh -i ' . $remoteKeyPath . ' -o StrictHostKeyChecking=accept-new') . ' ';
+                    }
+                }
+
+                $commands[] = "if [ -d " . escapeshellarg($remoteDir . '/.git') . " ]; then"
+                    . " {$gitSshPrefix}git -C " . escapeshellarg($remoteDir) . " pull origin " . escapeshellarg($branch) . " 2>&1;"
+                    . " else"
+                    . " {$gitSshPrefix}git clone --branch " . escapeshellarg($branch) . " " . escapeshellarg($project->repository) . " " . escapeshellarg($remoteDir) . " 2>&1;"
+                    . " fi";
+            } else {
+                $commands[] = 'mkdir -p ' . escapeshellarg($remoteDir);
+            }
+
+            $commands[] = 'cd ' . escapeshellarg($remoteDir);
+            $commands[] = 'docker compose up -d --build 2>&1';
+
             $process = Ssh::create(
                 $project->server->ssh_user,
                 $project->server->ip_address,
@@ -70,15 +104,20 @@ class DeploymentService
                 ->usePrivateKey($this->sshKeyPath())
                 ->disableStrictHostKeyChecking()
                 ->setTimeout(config('rstack.ssh_timeout', 120))
-                ->execute([
-                    'cd ' . escapeshellarg($remoteDir),
-                    'docker compose up -d 2>&1',
-                ]);
+                ->execute($commands);
 
             $log = trim($process->getOutput() . $process->getErrorOutput());
 
             if ($process->isSuccessful()) {
                 $this->markDeployed($deployment, $log);
+
+                // Automatically provision NPM proxy host if enabled
+                try {
+                    app(NginxProxyService::class)->provision($project);
+                } catch (Throwable $e) {
+                    // NPM failure must not roll back a successful deployment
+                    logger()->warning('NPM provisioning failed: ' . $e->getMessage());
+                }
             } else {
                 $this->markFailed($deployment, $log);
             }

@@ -13,6 +13,8 @@ class Project extends Model
         'name',
         'slug',
         'domain',
+        'repository',
+        'branch',
         'port',
         'server_id',
         'stack_id',

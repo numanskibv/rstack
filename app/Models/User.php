@@ -26,6 +26,8 @@ class User extends Authenticatable
         'email',
         'password',
         'is_admin',
+        'ssh_public_key',
+        'ssh_key_fingerprint',
     ];
 
     /**
