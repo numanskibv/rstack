@@ -19,7 +19,13 @@ class ProjectService
 
     public function all(): Collection
     {
-        return Project::with(['server', 'stack'])->latest()->get();
+        $query = Project::with(['server', 'stack'])->latest();
+
+        if (! Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+
+        return $query->get();
     }
 
     /**
@@ -27,7 +33,13 @@ class ProjectService
      */
     public function paginate(int $perPage = 20): LengthAwarePaginator
     {
-        return Project::with(['server', 'stack'])->latest()->paginate($perPage);
+        $query = Project::with(['server', 'stack'])->latest();
+
+        if (! Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+
+        return $query->paginate($perPage);
     }
 
     /**
@@ -81,7 +93,10 @@ class ProjectService
      */
     public function delete(int $id): void
     {
-        $project = Project::findOrFail($id);
+        $project = Auth::user()->is_admin
+            ? Project::findOrFail($id)
+            : Project::where('user_id', Auth::id())->findOrFail($id);
+
         $this->provisioner->deprovision($project);
         $project->delete();
     }

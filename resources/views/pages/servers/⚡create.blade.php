@@ -26,10 +26,10 @@ new #[Title('Add Server')] class extends Component {
         $this->validate();
 
         app(ServerService::class)->create([
-            'name'         => $this->name,
-            'ip_address'   => $this->ip_address,
-            'ssh_user'     => $this->ssh_user,
-            'ssh_port'     => $this->ssh_port,
+            'name' => $this->name,
+            'ip_address' => $this->ip_address,
+            'ssh_user' => $this->ssh_user,
+            'ssh_port' => $this->ssh_port,
             'max_projects' => $this->max_projects,
         ]);
 
@@ -74,9 +74,14 @@ new #[Title('Add Server')] class extends Component {
         </div>
 
         <flux:field>
-            <flux:label>{{ __('Max Projects') }} <flux:badge size="sm" variant="ghost">{{ __('optional') }}</flux:badge></flux:label>
-            <flux:input wire:model="max_projects" type="number" min="1" max="255" placeholder="{{ __('Unlimited') }}" />
-            <flux:description>{{ __('Leave empty for no limit. Prevents new projects from being added when the server is full.') }}</flux:description>
+            <flux:label>{{ __('Max Projects') }} <flux:badge size="sm" variant="ghost">{{ __('optional') }}
+                </flux:badge>
+            </flux:label>
+            <flux:input wire:model="max_projects" type="number" min="1" max="255"
+                placeholder="{{ __('Unlimited') }}" />
+            <flux:description>
+                {{ __('Leave empty for no limit. Prevents new projects from being added when the server is full.') }}
+            </flux:description>
             <flux:error name="max_projects" />
         </flux:field>
 

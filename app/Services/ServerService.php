@@ -10,12 +10,24 @@ class ServerService
 {
     public function all(): Collection
     {
-        return Server::withCount('projects')->latest()->get();
+        $query = Server::withCount('projects')->latest();
+
+        if (! Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+
+        return $query->get();
     }
 
     public function active(): Collection
     {
-        return Server::where('status', 'active')->orderBy('name')->get();
+        $query = Server::where('status', 'active')->orderBy('name');
+
+        if (! Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+
+        return $query->get();
     }
 
     public function create(array $data): Server
@@ -33,6 +45,10 @@ class ServerService
 
     public function delete(int $id): void
     {
-        Server::findOrFail($id)->delete();
+        $server = Auth::user()->is_admin
+            ? Server::findOrFail($id)
+            : Server::where('user_id', Auth::id())->findOrFail($id);
+
+        $server->delete();
     }
 }

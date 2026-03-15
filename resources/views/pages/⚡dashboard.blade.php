@@ -6,18 +6,27 @@ use App\Models\Stack;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
 use Livewire\Component;
+use Illuminate\Support\Facades\Auth;
 
 new #[Title('Dashboard')] class extends Component {
     #[Computed]
     public function serverCount(): int
     {
-        return Server::count();
+        $query = Server::query();
+        if (!Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+        return $query->count();
     }
 
     #[Computed]
     public function projectCount(): int
     {
-        return Project::count();
+        $query = Project::query();
+        if (!Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+        return $query->count();
     }
 
     #[Computed]
@@ -29,16 +38,23 @@ new #[Title('Dashboard')] class extends Component {
     #[Computed]
     public function runningCount(): int
     {
-        return Project::where('status', 'running')->count();
+        $query = Project::where('status', 'running');
+        if (!Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+        return $query->count();
     }
 
     #[Computed]
     public function recentProjects()
     {
-        return Project::with(['server', 'stack'])
+        $query = Project::with(['server', 'stack'])
             ->latest()
-            ->take(5)
-            ->get();
+            ->take(5);
+        if (!Auth::user()->is_admin) {
+            $query->where('user_id', Auth::id());
+        }
+        return $query->get();
     }
 }; ?>
 

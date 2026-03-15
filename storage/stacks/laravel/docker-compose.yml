@@ -27,6 +27,13 @@ services:
         condition: service_healthy
     networks:
       - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+        reservations:
+          memory: 128M
 
   db:
     image: mysql:8.4
@@ -45,6 +52,13 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          memory: 64M
 
 networks:
   app-network:
@@ -53,4 +67,3 @@ networks:
 volumes:
   app-storage:
   db-data:
-

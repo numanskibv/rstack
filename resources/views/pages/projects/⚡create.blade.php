@@ -103,12 +103,14 @@ new #[Title('New Project')] class extends Component {
                 @foreach ($this->servers as $server)
                     @php
                         $isFull = $server->max_projects !== null && $server->projects_count >= $server->max_projects;
-                        $capacity = $server->max_projects !== null
-                            ? $server->projects_count . '/' . $server->max_projects
-                            : $server->projects_count;
+                        $capacity =
+                            $server->max_projects !== null
+                                ? $server->projects_count . '/' . $server->max_projects
+                                : $server->projects_count;
                     @endphp
                     <flux:select.option value="{{ $server->id }}" @disabled($isFull)>
-                        {{ $server->name }} ({{ $server->ip_address }}) — {{ $capacity }}{{ $isFull ? ' · vol' : '' }}
+                        {{ $server->name }} ({{ $server->ip_address }}) —
+                        {{ $capacity }}{{ $isFull ? ' · vol' : '' }}
                     </flux:select.option>
                 @endforeach
             </flux:select>
@@ -119,7 +121,11 @@ new #[Title('New Project')] class extends Component {
                     <a href="{{ route('servers.create') }}" wire:navigate
                         class="underline">{{ __('Add a server first.') }}</a>
                 </flux:description>
-            @elseif ($server_id && ($selected = $this->servers->firstWhere('id', $server_id)) && $selected->max_projects !== null && $selected->projects_count >= $selected->max_projects)
+            @elseif (
+                $server_id &&
+                    ($selected = $this->servers->firstWhere('id', $server_id)) &&
+                    $selected->max_projects !== null &&
+                    $selected->projects_count >= $selected->max_projects)
                 <flux:description class="text-red-500">
                     {{ __('This server has reached its maximum number of projects (:max).', ['max' => $selected->max_projects]) }}
                 </flux:description>

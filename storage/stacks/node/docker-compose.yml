@@ -11,8 +11,14 @@ services:
       PORT: 3000
     networks:
       - app-network
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 256M
+        reservations:
+          memory: 64M
 
 networks:
   app-network:
     driver: bridge
-
