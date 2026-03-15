@@ -1,5 +1,6 @@
 <?php
 
+use App\Services\NextnameDnsService;
 use App\Services\ProjectService;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Title;
@@ -16,6 +17,15 @@ new #[Title('Projects')] class extends Component {
     {
         app(ProjectService::class)->delete($id);
         unset($this->projects);
+    }
+
+    public function checkDns(int $id): void
+    {
+        $project = $this->projects->firstWhere('id', $id);
+        if ($project) {
+            app(NextnameDnsService::class)->checkPropagation($project);
+            unset($this->projects);
+        }
     }
 }; ?>
 
@@ -74,17 +84,44 @@ new #[Title('Projects')] class extends Component {
                             </td>
                             <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ $project->server->name }}</td>
                             <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ $project->stack->name }}</td>
-                            <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ $project->domain ?: '—' }}</td>
+                            <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                                @if ($project->subdomain)
+                                    <span
+                                        class="font-mono text-xs">{{ $project->subdomain }}.{{ config('rstack.nextname.domain', 'rstack.nl') }}</span>
+                                    @php
+                                        $dnsColor = match ($project->dns_status) {
+                                            'active' => 'green',
+                                            'pending' => 'yellow',
+                                            'failed' => 'red',
+                                            default => 'zinc',
+                                        };
+                                    @endphp
+                                    <flux:badge size="sm" :color="$dnsColor" class="ml-1">
+                                        {{ $project->dns_status ?? 'unregistered' }}</flux:badge>
+                                @elseif ($project->domain)
+                                    {{ $project->domain }}
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td class="px-4 py-3 font-mono text-zinc-600 dark:text-zinc-400">{{ $project->port }}</td>
                             <td class="px-4 py-3">
                                 <flux:badge :color="$project->statusColor()">{{ ucfirst($project->status) }}
                                 </flux:badge>
                             </td>
                             <td class="px-4 py-3 text-end">
-                                <flux:button wire:click="delete({{ $project->id }})"
-                                    wire:confirm="Delete this project?" size="sm" variant="danger">
-                                    {{ __('Delete') }}
-                                </flux:button>
+                                <div class="flex items-center justify-end gap-2">
+                                    @if ($project->subdomain && $project->dns_status !== 'active' && config('rstack.nextname.enabled'))
+                                        <flux:button wire:click="checkDns({{ $project->id }})" size="sm"
+                                            variant="ghost" icon="signal">
+                                            {{ __('Check DNS') }}
+                                        </flux:button>
+                                    @endif
+                                    <flux:button wire:click="delete({{ $project->id }})"
+                                        wire:confirm="Delete this project?" size="sm" variant="danger">
+                                        {{ __('Delete') }}
+                                    </flux:button>
+                                </div>
                             </td>
                         </tr>
                     @endforeach

@@ -15,6 +15,7 @@ class ProjectService
     public function __construct(
         protected PortService $portService,
         protected ProjectProvisioner $provisioner,
+        protected NextnameDnsService $dns,
     ) {}
 
     public function all(): Collection
@@ -78,6 +79,13 @@ class ProjectService
             throw $e;
         }
 
+        // Register DNS A-record after successful provisioning (non-fatal)
+        try {
+            $this->dns->register($project);
+        } catch (Throwable) {
+            // DNS failure does not block project creation
+        }
+
         return $project;
     }
 
@@ -97,6 +105,7 @@ class ProjectService
             ? Project::findOrFail($id)
             : Project::where('user_id', Auth::id())->findOrFail($id);
 
+        $this->dns->remove($project);
         $this->provisioner->deprovision($project);
         $project->delete();
     }

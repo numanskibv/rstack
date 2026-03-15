@@ -53,4 +53,24 @@ return [
         'enabled'  => env('NPM_ENABLED', false),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Nextname DNS
+    |--------------------------------------------------------------------------
+    |
+    | RStack registers subdomain A-records via the Nextname.nl JSON REST API.
+    | Set NEXTNAME_API_KEY to your API key and NEXTNAME_DOMAIN to the base
+    | domain (e.g. rstack.nl). Set NEXTNAME_ENABLED=false to skip DNS
+    | registration entirely.
+    |
+    */
+
+    'nextname' => [
+        'url'     => env('NEXTNAME_URL', 'https://api.nextname.nl/v2'),
+        'key'     => env('NEXTNAME_API_KEY'),
+        'domain'  => env('NEXTNAME_DOMAIN', 'rstack.nl'),
+        'enabled' => env('NEXTNAME_ENABLED', false),
+        'ttl'     => (int) env('NEXTNAME_TTL', 300),
+    ],
+
 ];

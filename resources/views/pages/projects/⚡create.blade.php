@@ -15,6 +15,9 @@ new #[Title('New Project')] class extends Component {
     #[Validate('nullable|string|max:255')]
     public string $domain = '';
 
+    #[Validate('nullable|regex:/^[a-z0-9]([a-z0-9\-]*[a-z0-9])?$/|max:63|unique:projects,subdomain')]
+    public string $subdomain = '';
+
     #[Validate('nullable|url|max:500')]
     public string $repository = '';
 
@@ -46,6 +49,7 @@ new #[Title('New Project')] class extends Component {
         app(ProjectService::class)->create([
             'name' => $this->name,
             'domain' => $this->domain ?: null,
+            'subdomain' => $this->subdomain ?: null,
             'repository' => $this->repository ?: null,
             'branch' => $this->branch ?: 'main',
             'server_id' => $this->server_id,
@@ -79,6 +83,34 @@ new #[Title('New Project')] class extends Component {
             <flux:input wire:model="domain" placeholder="e.g. myapp.example.com" />
             <flux:error name="domain" />
         </flux:field>
+
+        @if (config('rstack.nextname.enabled'))
+            <flux:field>
+                <flux:label>
+                    {{ __('Subdomain') }}
+                    <flux:badge size="sm" variant="ghost">{{ __('optional') }}</flux:badge>
+                </flux:label>
+                <div class="flex items-center gap-0">
+                    <flux:input wire:model.live="subdomain" placeholder="myapp" class="rounded-r-none"
+                        pattern="[a-z0-9][a-z0-9\-]*[a-z0-9]" />
+                    <span
+                        class="flex h-10 items-center rounded-r-md border border-l-0 border-zinc-300 bg-zinc-100 px-3 text-sm text-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        .{{ config('rstack.nextname.domain', 'rstack.nl') }}
+                    </span>
+                </div>
+                @if ($subdomain)
+                    <flux:description class="text-blue-600 dark:text-blue-400">
+                        {{ __('Will register:') }}
+                        <strong>{{ $subdomain }}.{{ config('rstack.nextname.domain', 'rstack.nl') }}</strong>
+                    </flux:description>
+                @else
+                    <flux:description>
+                        {{ __('Lowercase letters, numbers and hyphens only. A DNS A-record will be registered automatically.') }}
+                    </flux:description>
+                @endif
+                <flux:error name="subdomain" />
+            </flux:field>
+        @endif
 
         <flux:field>
             <flux:label>{{ __('Git Repository') }} <flux:badge size="sm" variant="ghost">{{ __('optional') }}

@@ -1881,12 +1881,12 @@
                 </ul>
                 <ul class="flex gap-3 text-sm leading-normal">
                     @if (Route::has('register'))
-                    <li>
-                        <a href="{{ route('register') }}"
-                            class="inline-block dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A] dark:hover:bg-white dark:hover:border-white hover:bg-black hover:border-black px-5 py-1.5 bg-[#1b1b18] rounded-sm border border-black text-white text-sm leading-normal">
-                            Deploy now
-                        </a>
-                    </li>
+                        <li>
+                            <a href="{{ route('register') }}"
+                                class="inline-block dark:bg-[#eeeeec] dark:border-[#eeeeec] dark:text-[#1C1C1A] dark:hover:bg-white dark:hover:border-white hover:bg-black hover:border-black px-5 py-1.5 bg-[#1b1b18] rounded-sm border border-black text-white text-sm leading-normal">
+                                Deploy now
+                            </a>
+                        </li>
                     @endif
                 </ul>
             </div>
@@ -1896,13 +1896,15 @@
                 <svg class="w-56 h-56 transition-all translate-y-0 opacity-100 duration-750 starting:opacity-0 starting:translate-y-6"
                     viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <!-- Orange rounded square background -->
-                    <rect width="200" height="200" rx="34" fill="#F97316"/>
+                    <rect width="200" height="200" rx="34" fill="#F97316" />
                     <!-- Bold R -->
-                    <path d="M18 170 L18 30 L85 30 Q118 30 118 65 Q118 95 88 100 L120 170 L93 170 L63 102 L44 102 L44 170 Z M44 52 L44 82 L80 82 Q96 82 96 67 Q96 52 80 52 Z" fill="black"/>
+                    <path
+                        d="M18 170 L18 30 L85 30 Q118 30 118 65 Q118 95 88 100 L120 170 L93 170 L63 102 L44 102 L44 170 Z M44 52 L44 82 L80 82 Q96 82 96 67 Q96 52 80 52 Z"
+                        fill="black" />
                     <!-- Stack layers icon (3 flat diamonds) -->
-                    <polygon points="118,52 157,37 196,52 157,67" fill="black"/>
-                    <polygon points="118,88 157,73 196,88 157,103" fill="black"/>
-                    <polygon points="118,124 157,109 196,124 157,139" fill="black"/>
+                    <polygon points="118,52 157,37 196,52 157,67" fill="black" />
+                    <polygon points="118,88 157,73 196,88 157,103" fill="black" />
+                    <polygon points="118,124 157,109 196,124 157,139" fill="black" />
                 </svg>
                 <div
                     class="absolute inset-0 rounded-t-lg lg:rounded-t-none lg:rounded-e-lg shadow-[inset_0px_0px_0px_1px_rgba(26,26,0,0.16)] dark:shadow-[inset_0px_0px_0px_1px_#fffaed2d]">

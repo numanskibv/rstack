@@ -12,9 +12,12 @@ Beheer je eigen servers, definieer stack-templates en deploy applicaties via Doc
 | Categorie | Functie |
 |-----------|---------|
 | **Beveiliging** | Domeingerichte registratie, verplichte 2FA voor gevoelige acties, admin-middleware |
-| **Servers** | Docker-hosts toevoegen met SSH-configuratie |
+| **Multi-tenancy** | Servers en projecten zijn gescoopt per gebruiker; admins zien alles |
+| **Servers** | Docker-hosts toevoegen met SSH-configuratie (alleen admin) |
 | **Stacks** | Herbruikbare deployment-templates (Dockerfile + docker-compose.yml + .env.template) |
+| **Resource limits** | Elke stack enforceert CPU- en geheugenlimieten via `deploy.resources` |
 | **Projecten** | Automatische slug + poorttoewijzing, lokale bestandsprovisioning vanuit template |
+| **DNS subdomeinen** | Subdomeinen registreren via Nextname.nl API; automatische A-record + propagatiecheck |
 | **Git integratie** | Repository + branch per project; git clone (eerste keer) of git pull bij elke deploy |
 | **SSH Deploy keys** | Gebruikers genereren een persoonlijk ed25519-sleutelpaar; publieke sleutel als deploy key op GitHub/Gitea |
 | **Deployment** | SSH-verbinding naar server → git pull → `docker compose up -d --build` |
@@ -53,6 +56,7 @@ flowchart TD
             SvcDeploy["DeploymentService"]
             SvcProv["ProjectProvisioner\n+ StackService"]
             SvcNpm["NginxProxyService"]
+            SvcDns["NextnameDnsService"]
             SvcSsh["SshKeyService"]
             SvcDomain["AllowedDomainService"]
         end
@@ -106,6 +110,9 @@ flowchart TD
     SvcNpm -->|REST API| NPM
     NPM --> DomainProxy
     Containers --> DomainProxy
+
+    SvcProject -->|subdomain A-record| SvcDns
+    SvcDns -->|REST API| Nextname(["Nextname.nl DNS API"])
 
     GitHub -->|push to main| GHActions
     GHActions -->|docker compose up\nartisan migrate| Infrastructure
@@ -184,6 +191,11 @@ NPM_URL=http://npm.intern:81
 NPM_EMAIL=admin@example.com
 NPM_PASSWORD=geheimwachtwoord
 
+NEXTNAME_ENABLED=true
+NEXTNAME_API_KEY=jouw-nextname-api-key
+NEXTNAME_DOMAIN=rstack.nl
+NEXTNAME_TTL=300
+
 RSTACK_SSH_KEY_PATH=/home/rstack/.ssh/id_rsa
 RSTACK_REMOTE_PROJECT_ROOT=/srv/rstack/projects
 RSTACK_SSH_TIMEOUT=120
@@ -213,6 +225,11 @@ Zichtbaar in de sidebar voor gebruikers met `is_admin = true`.
 |--------|---------|
 | **Admin → Gebruikers** | Overzicht met 2FA-status, rollen, server-/projecttelling; admin-rechten verlenen/intrekken |
 | **Admin → Toegestane domeinen** | Domeinen toevoegen en verwijderen |
+
+### Multi-tenancy
+
+Elk authenticated gebruiker ziet alleen zijn eigen servers en projecten.
+Admins zien alles. Servers kunnen alleen door admins worden aangemaakt en verwijderd.
 
 ---
 
@@ -271,11 +288,12 @@ supervisord.conf      (aanwezig bij laravel)
 
 ### Meegeleverde templates
 
-| Stack | Runtime | Database | Omschrijving |
-|-------|---------|----------|--------------|
-| `laravel` | PHP 8.3-fpm-alpine + Nginx (multi-stage) | MySQL 8.4 | Laravel applicatie met Vite asset build |
-| `node` | Node 20 Alpine | — | Node.js applicatie, draait als niet-root gebruiker |
-| `static` | Nginx Alpine | — | Statische website / SPA met client-side routing |
+| Stack | Runtime | Database | CPU | Geheugen | Omschrijving |
+|-------|---------|----------|-----|----------|--------------|
+| `laravel` | PHP 8.3-fpm-alpine + Nginx (multi-stage) | MySQL 8.4 | 0.75 | 512M | Laravel applicatie met Vite asset build |
+| `node` | Node 20 Alpine | — | 0.50 | 256M | Node.js applicatie, draait als niet-root gebruiker |
+| `static` | Nginx Alpine | — | 0.25 | 64M | Statische website / SPA met client-side routing |
+| `php` | PHP 8.3-fpm-alpine + Nginx | — | 0.50 | 256M | Plain PHP applicatie met OPcache, Supervisor |
 
 ### Template details per stack
 
@@ -300,6 +318,13 @@ supervisord.conf      (aanwezig bij laravel)
 - Eigen **nginx.conf** met security headers + lange-termijn asset caching
 - Verwijdert `Dockerfile`, `.env` en `nginx.conf` automatisch uit de HTML root tijdens build
 
+#### php
+
+- **PHP 8.3-fpm-alpine** + Nginx als reverse proxy, Supervisor beheert beide processen
+- **OPcache** ingeschakeld voor hogere performance
+- Geen database-container; geschikt voor eenvoudige PHP-applicaties en scripts
+- CPU-limiet 0.50 / geheugen 256M
+
 ### Eigen template toevoegen
 
 1. Maak een map `storage/stacks/{naam}/`
@@ -314,11 +339,12 @@ supervisord.conf      (aanwezig bij laravel)
 1. Activeer 2FA (vereist)
 2. Ga naar **Projects → Project toevoegen**
 3. Kies een server en een stack
-4. Vul naam, domein, git repository (optioneel), branch en omgevingsvariabelen in
+4. Vul naam, domein, subdomain (optioneel), git repository (optioneel), branch en omgevingsvariabelen in
 5. RStack maakt automatisch:
    - Een unieke slug en poortnummer (startend bij 8001)
    - Een projectmap (`storage/app/projects/{slug}/`) met een kopie van de stack-template
    - Een `.env`-bestand met platform- en gebruikersvariabelen
+   - Een DNS A-record bij Nextname.nl (als een subdomain is ingevuld en `NEXTNAME_ENABLED=true`)
 
 ---
 
@@ -356,6 +382,49 @@ Een NPM-fout rolt de deployment **niet** terug — alleen een waarschuwing wordt
 
 ---
 
+## DNS subdomeinen (Nextname.nl)
+
+RStack kan automatisch DNS A-records registreren voor projecten via de JSON REST API van Nextname.nl.
+
+### Configuratie
+
+```env
+NEXTNAME_ENABLED=true
+NEXTNAME_API_KEY=jouw-nextname-api-key
+NEXTNAME_DOMAIN=rstack.nl
+NEXTNAME_TTL=300
+```
+
+### Hoe het werkt
+
+1. Bij het aanmaken van een project vul je een **subdomain** in (bijv. `myapp`)
+2. RStack maakt automatisch een A-record aan: `myapp.rstack.nl → server IP`
+3. De `dns_status` van het project wordt ingesteld op `pending`
+4. Via de projectlijst is er een **Check DNS**-knop om propagatie te controleren
+5. Zodra het subdomain resolveert naar het juiste IP wordt `dns_status` bijgewerkt naar `active`
+
+### Artisan command (productiecontrole)
+
+```bash
+# Check alle pending subdomeinen
+php artisan rstack:check-dns
+
+# Check één specifiek project
+php artisan rstack:check-dns --project=myapp
+
+# Check alle projecten (ook active)
+php artisan rstack:check-dns --all
+
+# Check én vraag meteen SSL aan via NPM zodra DNS actief is
+php artisan rstack:check-dns --ssl
+```
+
+Output: tabel met project, slug, FQDN, server IP en DNS-status.
+
+> **Subdomain-regels:** alleen kleine letters, cijfers en koppeltekens; max 63 tekens; mag niet beginnen of eindigen met een koppelteken. Uniek per RStack-installatie.
+
+---
+
 ## CI/CD Pipeline
 
 `.github/workflows/deploy.yml` — trigger: `push` naar `main`
@@ -377,7 +446,7 @@ Stappen:
 | `users` | Gebruikers, `is_admin`, 2FA-velden, `ssh_public_key`, `ssh_key_fingerprint` |
 | `servers` | Docker-hosts (`ip_address`, `ssh_user`, `ssh_port`, `status`) |
 | `stacks` | Deployment-templates (`slug`, `template_path`) |
-| `projects` | Applicaties (`slug`, `domain`, `port`, `repository`, `branch`, `status`, `env_vars`) |
+| `projects` | Applicaties (`slug`, `domain`, `subdomain`, `dns_status`, `port`, `repository`, `branch`, `status`, `env_vars`) |
 | `deployments` | Deploy-runs (`status`, `log`, `deployed_at`) |
 | `allowed_domains` | Toegestane e-maildomeinen voor registratie |
 
@@ -387,13 +456,14 @@ Stappen:
 
 | Service | Verantwoordelijkheid |
 |---------|---------------------|
-| `ServerService` | Server CRUD |
-| `ProjectService` | Project CRUD, atomische slug + poorttoewijzing (DB-transactie) |
+| `ServerService` | Server CRUD (gescoopt op ingelogde gebruiker; admin ziet alles) |
+| `ProjectService` | Project CRUD, atomische slug + poorttoewijzing (DB-transactie), DNS-hooks |
 | `PortService` | Automatische poorttoewijzing (start bij poort 8001) |
 | `ProjectProvisioner` | Lokale bestandssysteem-provisioning (template kopiëren, `.env` schrijven) |
 | `StackService` | Stack CRUD + template-validatie |
 | `DeploymentService` | SSH-verbinding, git clone/pull, Docker, deployment-lifecycle |
 | `NginxProxyService` | NPM REST API: proxy host aanmaken/bijwerken/verwijderen |
+| `NextnameDnsService` | Nextname.nl REST API: A-record aanmaken/verwijderen, DNS-propagatiecheck |
 | `SshKeyService` | ed25519-sleutelpaar genereren, publieke sleutel opslaan in DB |
 | `AllowedDomainService` | Beheer van toegestane registratiedomeinen |
 
@@ -527,7 +597,37 @@ De bijbehorende **publieke sleutel** moet aanwezig zijn in `~/.ssh/authorized_ke
 
 ## Servers toevoegen
 
+> **Let op:** alleen admins kunnen servers toevoegen en verwijderen.
+
 1. Activeer 2FA (vereist)
 2. Ga naar **Servers → Server toevoegen**
 3. Vul naam, IP-adres, SSH-gebruiker en poort in
 4. Zorg dat de SSH-sleutel van RStack toegang heeft tot de server
+
+---
+
+## Tests
+
+De testsuite draait volledig in-memory (SQLite) en is opgesplitst in:
+
+```bash
+php artisan test
+# of gefiltered:
+php artisan test --filter=NextnameDnsServiceTest
+php artisan test --filter=SubdomainValidation
+```
+
+### Overzicht testbestanden
+
+| Bestand | Tests | Dekt |
+|---------|-------|------|
+| `tests/Feature/NextnameDnsServiceTest.php` | 16 | `enabled()`, `register()`, `remove()`, `checkPropagation()`, `fqdn()` — inclusief `Http::fake()` |
+| `tests/Feature/Projects/SubdomainValidationTest.php` | 14 | Subdomain-format validatie, uniekheidsregel |
+| `tests/Feature/Auth/*` | 13 | Login, registratie, 2FA, e-mailverificatie, wachtwoord reset |
+| `tests/Feature/DashboardTest.php` | 2 | Dashboard toegankelijkheid |
+| `tests/Feature/Settings/*` | 9 | Profiel bijwerken, wachtwoord wijzigen, beveiligingsinstellingen |
+
+### Factories
+
+`ServerFactory`, `StackFactory` en `ProjectFactory` zijn beschikbaar voor gebruik in tests.
+`ProjectFactory::withSubdomain(string $subdomain, ?string $dnsStatus = 'pending')` maakt het eenvoudig projecten met subdomain-scenario's aan te maken.

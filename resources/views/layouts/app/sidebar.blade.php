@@ -19,10 +19,12 @@
                     wire:navigate>
                     {{ __('Dashboard') }}
                 </flux:sidebar.item>
-                <flux:sidebar.item icon="server" :href="route('servers.index')"
-                    :current="request()->routeIs('servers.*')" wire:navigate>
-                    {{ __('Servers') }}
-                </flux:sidebar.item>
+                @if (auth()->user()?->is_admin)
+                    <flux:sidebar.item icon="server" :href="route('servers.index')"
+                        :current="request()->routeIs('servers.*')" wire:navigate>
+                        {{ __('Servers') }}
+                    </flux:sidebar.item>
+                @endif
                 <flux:sidebar.item icon="squares-2x2" :href="route('projects.index')"
                     :current="request()->routeIs('projects.*')" wire:navigate>
                     {{ __('Projects') }}
